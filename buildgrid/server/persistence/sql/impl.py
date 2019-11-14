@@ -149,9 +149,11 @@ class SQLDataStore(DataStoreInterface):
             command.upgrade(config, "head")
 
     @contextmanager
-    def session(self):
+    def session(self, sqlite_lock_immediately=False):
         session = Session()
         try:
+            if sqlite_lock_immediately and session.bind.name == "sqlite":
+                session.execute("BEGIN IMMEDIATE")
             yield session
             session.commit()
         except:
@@ -216,7 +218,7 @@ class SQLDataStore(DataStoreInterface):
                 self.response_cache[job.name] = job.execute_response
 
     def queue_job(self, job_name):
-        with self.session() as session:
+        with self.session(sqlite_lock_immediately=True) as session:
             job = self._get_job(job_name, session, with_for_update=True)
             job.assigned = False
 
@@ -346,8 +348,8 @@ class SQLDataStore(DataStoreInterface):
             time.sleep(0.5)
 
     def _assign_job_leases(self, capabilities, callback):
-        with self.session() as session:
-            jobs = session.query(Job).with_for_update()
+        with self.session(sqlite_lock_immediately=True) as session:
+            jobs = session.query(Job).with_for_update(skip_locked=True)
             jobs = jobs.filter(Job.stage == OperationStage.QUEUED.value)
             jobs = jobs.filter(Job.assigned != True)  # noqa
 
