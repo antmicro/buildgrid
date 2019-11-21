@@ -47,7 +47,7 @@ services:
       "--buildbox-run=buildbox-run-hosttools",
       "--bots-remote=http://buildgrid:50051",
       "--cas-remote=http://buildgrid:50051",
-      "--request-timeout=10"
+      "--request-timeout=30"
     ]
     depends_on:
       - buildgrid
@@ -63,6 +63,7 @@ services:
       - RECC_VERBOSE=1
       - RECC_SERVER=buildgrid:50051
       - RECC_FORCE_REMOTE=1
+      - ST_ITER=${ST_ITER}
     volumes:
      - type: bind
        source: ./configs/recc-test-command.sh

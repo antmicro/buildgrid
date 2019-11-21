@@ -1,5 +1,5 @@
 #!/bin/bash
-# This bash script sleeps for [0,9] seconds and
+# This bash script sleeps for [0,5] seconds and
 # then copies an uploaded file containing a random number
 # to the expected output location
 # and checks whether the downloaded result.txt matches the input
@@ -7,6 +7,9 @@
 #   0: Worker successfully ran the command and results match
 #   2: The worker returned the wrong result
 #   Anything else: Other errors (inspect)
+#
+# This happens ST_ITER times. (where ST_ITER is an environment variable)
+# Defaults to 1 iteration if not set.
 
 # Things being tested:
 #   * (recc<->bgd-cas)  GetActionResult
@@ -19,20 +22,25 @@
 #   * (bgd-exec<->bots) UpdateActionResult
 #
 
-sleep $[ ( $RANDOM % 10 ) ]s
+iter=${ST_ITER:-1}
 
-mynum=$RANDOM
-echo $mynum > expected.txt
+for ((i=1;i<=iter;i++)); do
+    echo "Iteration [$i/$iter]"
+    sleep $[ ( $RANDOM % 5 ) ]s
 
-set -o pipefail
+    mynum=$RANDOM
+    echo $mynum > expected.txt
 
-RECC_DEPS_OVERRIDE=expected.txt \
-RECC_OUTPUT_FILES_OVERRIDE=result.txt \
-    recc cp expected.txt result.txt
-exitcode=$?
-if [[ $exitcode -ne 0 ]]; then
-    exit $exitcode
-fi
+    set -o pipefail
 
-diff -y result.txt expected.txt || exit 2
+    RECC_DEPS_OVERRIDE=expected.txt \
+    RECC_OUTPUT_FILES_OVERRIDE=result.txt \
+        recc cp expected.txt result.txt
+    exitcode=$?
+    if [[ $exitcode -ne 0 ]]; then
+        exit $exitcode
+    fi
+
+    diff -y result.txt expected.txt || exit 2
+done
 

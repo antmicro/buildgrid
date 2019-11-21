@@ -25,7 +25,7 @@ import logging
 from threading import Lock
 
 from buildgrid._enums import LeaseState, OperationStage
-from buildgrid._exceptions import NotFoundError
+from buildgrid._exceptions import NotFoundError, UpdateNotAllowedError
 from buildgrid.server.job import Job
 from buildgrid.utils import BrowserURL
 
@@ -363,7 +363,13 @@ class Scheduler:
 
             if (self._action_cache is not None and
                     self._action_cache.allow_updates and not job.do_not_cache):
-                self._action_cache.update_action_result(job.action_digest, job.action_result)
+                try:
+                    self._action_cache.update_action_result(job.action_digest, job.action_result)
+                except UpdateNotAllowedError:
+                    # The configuration doesn't allow updating the old result
+                    self.__logger.exception("ActionResult for action_digest=[%s/%s] wasn't updated.",
+                                            job.action_digest.hash, job.action_digest.size_bytes, exc_info=True)
+                    pass
             self.data_store.store_response(job)
 
             operation_stage = OperationStage.COMPLETED

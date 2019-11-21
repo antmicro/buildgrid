@@ -26,6 +26,7 @@ from buildgrid.server.controller import ExecutionController
 from buildgrid.server.actioncache.instance import ActionCache
 from buildgrid.server.actioncache.remote import RemoteActionCache
 from buildgrid.server.actioncache.s3storage import S3ActionCache
+from buildgrid.server.actioncache.writeonceaction import WriteOnceActionCache
 from buildgrid.server.referencestorage.storage import ReferenceCache
 from buildgrid.server.cas.instance import ByteStreamInstance, ContentAddressableStorageInstance
 from buildgrid.server.cas.storage.disk import DiskStorage
@@ -456,6 +457,26 @@ class RemoteAction(YamlFactory):
         return RemoteActionCache(channel, instance_name)
 
 
+class WriteOnceAction(YamlFactory):
+    """Generates :class:`buildgrid.server.actioncache.remote.WriteOnceActionCache`
+    using the tag ``!write-once-action-cache``.
+
+    Args:
+      url (str): URL to remote action cache. If used with ``https``, needs credentials.
+      instance_name (str): Instance of the remote to connect to.
+      credentials (dict, optional): A dictionary in the form::
+
+           tls-client-key: /path/to/client-key
+           tls-client-cert: /path/to/client-cert
+           tls-server-cert: /path/to/server-cert
+    """
+
+    yaml_tag = u'!write-once-action-cache'
+
+    def __new__(cls, action_cache):
+        return WriteOnceActionCache(action_cache)
+
+
 class Reference(YamlFactory):
     """Generates :class:`buildgrid.server.referencestorage.service.ReferenceStorageService`
     using the tag ``!reference-cache``.
@@ -521,6 +542,7 @@ def get_parser():
     yaml.SafeLoader.add_constructor(Action.yaml_tag, Action.from_yaml)
     yaml.SafeLoader.add_constructor(RemoteAction.yaml_tag, RemoteAction.from_yaml)
     yaml.SafeLoader.add_constructor(S3Action.yaml_tag, S3Action.from_yaml)
+    yaml.SafeLoader.add_constructor(WriteOnceAction.yaml_tag, WriteOnceAction.from_yaml)
     yaml.SafeLoader.add_constructor(Reference.yaml_tag, Reference.from_yaml)
     yaml.SafeLoader.add_constructor(Disk.yaml_tag, Disk.from_yaml)
     yaml.SafeLoader.add_constructor(LRU.yaml_tag, LRU.from_yaml)

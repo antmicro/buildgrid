@@ -67,6 +67,10 @@ class S3ActionCache:
     def instance_name(self):
         return self._instance_name
 
+    @instance_name.setter
+    def instance_name(self, instance_name):
+        self._instance_name = instance_name
+
     @property
     def allow_updates(self):
         return self._allow_updates

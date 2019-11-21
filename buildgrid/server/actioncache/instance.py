@@ -51,6 +51,10 @@ class ActionCache(ReferenceCache):
     def instance_name(self):
         return self._instance_name
 
+    @instance_name.setter
+    def instance_name(self, instance_name):
+        self._instance_name = instance_name
+
     def hash_type(self):
         return get_hash_type()
 

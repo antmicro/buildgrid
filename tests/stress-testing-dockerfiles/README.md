@@ -28,3 +28,15 @@ docker-compose -f $STDC ps | grep -v "Exit 0"
 # ... Or watch using the provided script
 watch -n 0.5 -d scripts/stdc-ps-non0.sh
 ```
+
+# N Client requests
+You can also tell the client to send multiple sequential requests (n)
+by setting the environment variable `ST_ITER` before running `docker-compose up`.
+
+The default is only 1 request per client.
+e.g.
+```bash
+ST_ITER=10
+docker-compose -f $STDC up -d --scale clients=100 --scale bots=10
+```
+

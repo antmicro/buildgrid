@@ -71,6 +71,12 @@ class NotFoundError(BgdError):
         super().__init__(message, detail=detail, domain=ErrorDomain.SERVER, reason=reason)
 
 
+class UpdateNotAllowedError(BgdError):
+    """UpdateNotAllowedError error."""
+    def __init__(self, message, detail=None, reason=None):
+        super().__init__(message, detail=detail, domain=ErrorDomain.SERVER, reason=reason)
+
+
 class OutOfSyncError(BgdError):
     """The worker is out of sync with the server, such as having a differing
     number of leases."""

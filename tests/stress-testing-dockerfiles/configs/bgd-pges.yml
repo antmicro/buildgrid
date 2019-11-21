@@ -22,16 +22,20 @@ instances:
         connection_string: postgresql://bgd:insecure@database/bgd
         automigrate: yes
 
-    services:
+    action-caches:
       - !action-cache &build-cache
         storage: *cas-storage
         max-cached-refs: 256
         cache-failed-actions: true
         allow-updates: true
 
+    services:
+      - !write-once-action-cache &immutable-build-cache
+        action-cache: *build-cache
+
       - !execution
         storage: *cas-storage
-        action-cache: *build-cache
+        action-cache: *immutable-build-cache
         data-store: *state-database
 
       - !cas
