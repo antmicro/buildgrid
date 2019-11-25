@@ -217,6 +217,176 @@ following diagram shows a typical setup.
 
     }
 
+The flow of BuildGrid requests
+==============================
+
+BuildGrid uses various threads to achieve different tasks.
+The following diagram is an overview of the interactions between components of BuildGrid
+in response to a GRPC Request.
+
+The Light Green color is used to signify distinct threads, and entities outside of
+the green boxes are shared among all threads.
+
+.. graphviz::
+   :align: center
+
+	digraph buildgrid_overview {
+		node [shape=record,
+			width=2,
+			height=1];
+
+		fontsize=16;
+		compound=true;
+		graph [nodesep=0.1,
+			   ranksep=0]
+
+		edge [arrowtail="vee",
+			arrowhead="vee",
+			fontsize=16,
+			fontcolor="#02075D",
+			color="#02075D",];
+
+		splines=polyline;
+        rankdir=LR;
+
+		subgraph cluster_clients{
+			label="GRPC Clients\n(REAPI/RWAPI)";
+			labeljust="c";
+			fillcolor="#ffccdd";
+			style=filled;
+			clients [label="Remote Execution Clients|Bots|CAS Clients\n",
+				fillcolor="#ff998e",
+				style=filled]
+		}
+
+		subgraph cluster_bgd {
+			label="BuildGrid Process";
+			labeljust="c";
+			fillcolor="#ffda8e";
+			style=filled;
+
+			subgraph cluster_bgd_services {
+				label="BuildGrid Services";
+				labeljust="c";
+				fillcolor="#ffb214";
+				fontsize=14;
+				bgd_services [
+					label="Execution|Bots|CAS\n",
+					fillcolor="#ffb214",
+					style=filled]
+			}
+
+			subgraph cluster_data {
+				label="Persistent Data";
+				labeljust="c";
+				fillcolor="#9370db";
+				data [label="CAS Backend";shape=cylinder;]
+				data_store [label="DataStore";shape=cylinder;]
+			}
+
+			jobwatcher [
+				label="Job Watcher Thread",
+				labeljust="c",
+				fillcolor="#42edae",
+				fontsize=14,
+				style=filled,
+			]
+
+			subgraph cluster_mainthread {
+				label="Main Thread";
+				fillcolor="#42edae";
+				fontsize=14;
+				subgraph cluster_asyncioloop {
+					label="asyncio loop";
+					labeljust="c";
+					fillcolor="#00A572";
+					style=filled;
+					asyncio_loop [label="Metrics & Logging|BotSession Reaper\n",
+						fillcolor="#29AB87",
+						style=filled];
+				}
+			}
+
+			subgraph cluster_grpc {
+				label="GRPC Thread";
+				fillcolor="#42edae";
+				fontsize=14;
+				subgraph cluster_grpcserver{
+					label="GRPC Server";
+					labeljust="c";
+					fillcolor="#37c1e8";
+					style=filled;
+					grpc_server [label="unary_unary|unary_stream\n",
+						fillcolor="#37c1cc",
+						style=filled];
+				}
+
+				grpccb [
+					label="Pluggable\nTermination Callback\n(per request type)",
+					fillcolor="#37c1cc",
+					style=filled,
+				]
+			}
+
+			subgraph cluster_grpcservicer {
+				label="GRPC Servicer\n(Running within ThreadPool)\n`gRPC_Executor_n`";
+				labeljust="c";
+				fillcolor="#42edae";
+				style=filled;
+				fontsize=14;
+				grpc_servicer [label="def Execute:\l|def WaitExecute:\l|def ...:\l",
+					fillcolor="#17e86a",
+					style=filled];
+			}
+
+			grpc_server -> grpc_servicer [
+				dir="forward",
+				label="2. ThreadPool.submit()",
+				ltail=cluster_grpcserver,
+				lhead=cluster_grpcservicer
+			]
+
+			grpc_servicer -> grpc_server [
+				dir="forward",
+				label="3. Prepares response",
+				lhead=cluster_grpcserver,
+				ltail=cluster_grpcservicer
+			]
+
+			grpc_server -> grpccb [
+				dir="forward",
+				label="5. Calls Termination Callback\n(optional)",
+				lhead=cluster_grpcserver,
+			]
+
+		}
+
+		clients -> grpc_server [
+			dir="forward",
+			label="1.\ngrpc:Execute\lgrpc:WaitExecute\lgrpc:...\l",
+			lhead=cluster_grpcserver,
+			ltail = cluster_clients,
+		];
+
+		grpc_server -> clients[
+			dir="forward",
+			label="4. Sends Response",
+			ltail=cluster_grpcserver,
+			lhead = cluster_clients,
+		];
+
+
+		# Invisible edges to improve the layout
+		bgd_services -> data [style=invis];
+		asyncio_loop -> data_store [style=invis];
+		data -> jobwatcher [style=invis];
+		
+		}
+
+
+
+
+
 .. _Remote Execution API: https://github.com/bazelbuild/remote-apis/blob/master/build/bazel/remote/execution/v2
 .. _gRPC: https://grpc.io
 .. _protocol-buffers: https://developers.google.com/protocol-buffers
