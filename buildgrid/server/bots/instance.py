@@ -240,14 +240,15 @@ class BotsInterface:
                                                                                     eviction_record[1]))
                 raise InvalidArgumentError('Name not registered on server: bot_name=[{}]'.format(name))
             elif _bot_id != bot_id:
-                self._close_bot_session(name, reason="bot_id mismatch between worker and bgd")
+                self._close_bot_session(name, reason="bot_id mismatch between worker and bgd for bot with same name")
                 raise InvalidArgumentError(
                     'Bot id invalid. ID sent: bot_id=[{}] with name: bot_name[{}].'
                     'ID registered: bgd_bot_id[{}] for that name'.format(bot_id, name, _bot_id))
         else:
             for _name, _bot_id in self._bot_ids.items():
                 if bot_id == _bot_id:
-                    self._close_bot_session(_name, reason="bot already registered and given name")
+                    self._close_bot_session(_name,
+                                            reason="bot with same name already registered and given different bot_id")
                     raise InvalidArgumentError(
                         'Bot id already registered. ID sent: bot_id=[{}].'
                         'Id registered: bgd_bot_id=[{}] with bgd_bot_name=[{}]'.format(bot_id, _bot_id, _name))
@@ -323,7 +324,7 @@ class BotsInterface:
                 except NotFoundError:
                     pass
 
-    def _close_bot_session(self, name, *, reason=None):
+    def _close_bot_session(self, name, *, reason):
         """ Before removing the session, close any leases and
         requeue with high priority.
         """
@@ -364,7 +365,7 @@ class BotsInterface:
 
         self.__logger.debug("Closing bot session: [%s]", name)
         self._bot_ids.pop(name)
-        self.__logger.info("Closed bot [%s] with name: [%s]", bot_id, name)
+        self.__logger.info("Closed bot session id: [%s], name: [%s], reason: [%s]", bot_id, name, reason)
 
     def _update_next_expire_time(self, compare_to=None):
         """
@@ -408,11 +409,12 @@ class BotsInterface:
 
     def _next_expire_time_occurs_in(self):
         if self._next_expire_time:
-            next_expire_time = round((self._next_expire_time -
-                                      datetime.utcnow()).total_seconds(), 3)
-            # Pad this with 0.1 second so that the expiry actually happens
-            # Also make sure it is >= 0 (negative numbers means expiry happened already!)
-            return max(0, next_expire_time + 0.1)
+            next_expire_time = (self._next_expire_time - datetime.utcnow()).total_seconds()
+            # Check if this is in the future (> 0, negative values means expiry happened already!)
+            if next_expire_time > 0:
+                # Pad this with 0.1 second so that the expiry actually happens when we try to reap
+                return round(next_expire_time + 0.1, 3)
+            return 0
 
         return None
 
@@ -475,7 +477,7 @@ class BotsInterface:
                     expires_in = self._next_expire_time_occurs_in()
                     if expires_in:
                         self.__logger.debug("Waiting for an event indicating earlier expiry or wait=[%s]"
-                                            " for a the next BotSession to expire.", expires_in)
+                                            " for the next BotSession to expire.", expires_in)
                     else:
                         self.__logger.debug("No more BotSessions to watch for expiry, waiting for new BotSessions.")
                     await asyncio.wait_for(self._deadline_event.wait(), timeout=expires_in)
