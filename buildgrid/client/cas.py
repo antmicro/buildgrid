@@ -739,12 +739,21 @@ class Uploader:
 
         last_directory_node = None
 
+        stub = remote_execution_pb2_grpc.ContentAddressableStorageStub(self.channel)
+
         if not queue:
             for node, blob, _ in merkle_tree_maker(directory_path):
                 if node.DESCRIPTOR is remote_execution_pb2.DirectoryNode.DESCRIPTOR:
                     last_directory_node = node
+                request = remote_execution_pb2.FindMissingBlobsRequest(instance_name=self.instance_name,
+                        blob_digests=[node.digest])
+                fmb_response = stub.FindMissingBlobs(request)
 
-                self._send_blob(blob, digest=node.digest)
+                fmb_response_list = fmb_response.missing_blob_digests
+
+                if len(fmb_response_list) > 0:
+                    print("Sending missing blob.")
+                    self._send_blob(blob, digest=node.digest)
 
         else:
             for node, blob, _ in merkle_tree_maker(directory_path):
