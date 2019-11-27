@@ -752,7 +752,10 @@ class Uploader:
                 fmb_response_list = fmb_response.missing_blob_digests
 
                 if len(fmb_response_list) > 0:
-                    print("Sending missing blob.")
+                    print("FOUND MISSING BLOB")
+                    print(fmb_response_list[0])
+                    print(node.name)
+                    print()
                     self._send_blob(blob, digest=node.digest)
 
         else:
