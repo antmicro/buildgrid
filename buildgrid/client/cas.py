@@ -401,13 +401,13 @@ class Downloader:
 
     def _queue_file(self, digest, file_path, is_executable=False):
         """Queues a file for later batch download"""
-        batch_size_limit = self._max_effective_batch_size_bytes()
+        batch_size_limit = self._max_effective_batch_size_bytes() - 1024*128
 
         if self.__file_request_size + digest.ByteSize() > batch_size_limit:
             self.flush()
         elif self.__file_response_size + digest.size_bytes > batch_size_limit:
             self.flush()
-        elif self.__file_request_count >= MAX_REQUEST_COUNT:
+        elif self.__file_request_count >= (MAX_REQUEST_COUNT - 1024*128):
             self.flush()
 
         output_path = (file_path, is_executable)
@@ -886,11 +886,11 @@ class Uploader:
         # If we are here queueing a file we know that its size is
         # smaller than gRPC's message size limit.
         # We'll make a single batch request as big as the server allows.
-        batch_size_limit = self._max_effective_batch_size_bytes()
+        batch_size_limit = self._max_effective_batch_size_bytes() - 1024*128
 
         if self.__request_size + blob_digest.size_bytes > batch_size_limit:
             self.flush()
-        elif self.__request_count >= MAX_REQUEST_COUNT:
+        elif self.__request_count >= (MAX_REQUEST_COUNT - 1024*128):
             self.flush()
 
         self.__requests[blob_digest.hash] = (blob, blob_digest)
