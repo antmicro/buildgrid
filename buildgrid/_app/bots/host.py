@@ -91,7 +91,7 @@ def work_host_tools(lease, context, event):
         cmd_list_to_string = ' '.join(command_line)
 
         process = subprocess.Popen(cmd_list_to_string,
-                                   shell=True
+                                   shell=True,
                                    cwd=working_directory,
                                    env=environment,
                                    stdin=subprocess.PIPE,
