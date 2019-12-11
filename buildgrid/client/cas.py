@@ -19,6 +19,7 @@ from collections import namedtuple
 from contextlib import contextmanager
 import os
 import uuid
+import sys
 
 import grpc
 
@@ -747,10 +748,21 @@ class Uploader:
                 if node.DESCRIPTOR is remote_execution_pb2.DirectoryNode.DESCRIPTOR:
                     last_directory_node = node
                 blobs.append(node.digest)
-            request = remote_execution_pb2.FindMissingBlobsRequest(instance_name=self.instance_name,
-                blob_digests=blobs)
-            fmb_response = stub.FindMissingBlobs(request)
-            fmb_response_list = fmb_response.missing_blob_digests
+            i = 0
+            fmb_response_list = []
+            max_chunk = 80000
+            while i < len(blobs):
+                print("Sending {} batch of FMB".format(i//max_chunk))
+                blobchunk = []
+                if i < len(blobs):
+                    blobchunk = blobs[i:i+max_chunk]
+                else:
+                    blobchunk = blobs[i:]
+                request = remote_execution_pb2.FindMissingBlobsRequest(instance_name=self.instance_name,
+                    blob_digests=blobchunk)
+                fmb_response = stub.FindMissingBlobs(request)
+                fmb_response_list.extend(fmb_response.missing_blob_digests)
+                i = i + max_chunk
 
             for node, blob, _ in merkle_tree_maker(directory_path):
                 if node.DESCRIPTOR is remote_execution_pb2.DirectoryNode.DESCRIPTOR:
