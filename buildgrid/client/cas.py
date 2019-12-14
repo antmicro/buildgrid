@@ -769,7 +769,7 @@ class Uploader:
                 if node.DESCRIPTOR is remote_execution_pb2.DirectoryNode.DESCRIPTOR:
                     last_directory_node = node
                 j += 1
-                if j%1000 == 0:
+                if j%10000 == 0:
                     print("Node "+str(j))
                 if node.digest in fmb_response_list:
                     print("Uploading '%s'..." % node.name)
