@@ -750,7 +750,7 @@ class Uploader:
                 blobs.append(node.digest)
             i = 0
             fmb_response_list = []
-            max_chunk = 80000
+            max_chunk = 60000
             print("Nodes count "+str(len(blobs)))
             while i < len(blobs):
                 print("Sending {} batch of FMB".format(i//max_chunk))
