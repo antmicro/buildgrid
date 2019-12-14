@@ -751,6 +751,7 @@ class Uploader:
             i = 0
             fmb_response_list = []
             max_chunk = 80000
+            print("Nodes count "+str(len(blobs)))
             while i < len(blobs):
                 print("Sending {} batch of FMB".format(i//max_chunk))
                 blobchunk = []
@@ -763,10 +764,13 @@ class Uploader:
                 fmb_response = stub.FindMissingBlobs(request)
                 fmb_response_list.extend(fmb_response.missing_blob_digests)
                 i = i + max_chunk
-
+            j = 0
             for node, blob, _ in merkle_tree_maker(directory_path):
                 if node.DESCRIPTOR is remote_execution_pb2.DirectoryNode.DESCRIPTOR:
                     last_directory_node = node
+                j += 1
+                if j%1000 == 0:
+                    print("Node "+str(j))
                 if node.digest in fmb_response_list:
                     print("Uploading '%s'..." % node.name)
                     self._send_blob(blob, digest=node.digest)
