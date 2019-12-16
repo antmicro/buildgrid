@@ -770,7 +770,7 @@ class Uploader:
                     last_directory_node = node
                 j += 1
                 if j%10000 == 0:
-                    print("Node "+str(j))
+                    print("Nodes checked "+str(j))
                 if node.digest in fmb_response_list:
                     print("Uploading '%s'..." % node.name)
                     self._send_blob(blob, digest=node.digest)
