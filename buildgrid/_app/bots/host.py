@@ -89,7 +89,6 @@ def work_host_tools(lease, context, event):
         action_result.execution_metadata.execution_start_timestamp.GetCurrentTime()
 
         process = subprocess.Popen(command_line,
-                                   shell=True,
                                    cwd=working_directory,
                                    env=environment,
                                    stdin=subprocess.PIPE,
