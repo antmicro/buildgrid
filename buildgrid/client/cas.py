@@ -742,33 +742,34 @@ class Uploader:
 
         stub = remote_execution_pb2_grpc.ContentAddressableStorageStub(self.channel)
 
+        blobs = []
+        for node, blob, _ in merkle_tree_maker(directory_path):
+            if node.DESCRIPTOR is remote_execution_pb2.DirectoryNode.DESCRIPTOR:
+                last_directory_node = node
+            blobs.append((node.digest, blob, node.name,))
+        i = 0
+        fmb_response_list = []
+        max_chunk = 40000
+        print("Nodes count "+str(len(blobs)))
+        while i < len(blobs):
+            print("Sending {} batch of FMB".format(i//max_chunk))
+            blobchunk = []
+            if i < len(blobs):
+                blobchunk = blobs[i:i+max_chunk]
+            else:
+                blobchunk = blobs[i:]
+
+            only_digests = []
+            for el in blobchunk:
+                only_digests.append(el[0])
+
+            request = remote_execution_pb2.FindMissingBlobsRequest(instance_name=self.instance_name,
+                blob_digests=only_digests)
+            fmb_response = stub.FindMissingBlobs(request)
+            fmb_response_list.extend(fmb_response.missing_blob_digests)
+            i = i + max_chunk
+
         if not queue:
-            blobs = []
-            for node, blob, _ in merkle_tree_maker(directory_path):
-                if node.DESCRIPTOR is remote_execution_pb2.DirectoryNode.DESCRIPTOR:
-                    last_directory_node = node
-                blobs.append((node.digest, blob, node.name,))
-            i = 0
-            fmb_response_list = []
-            max_chunk = 40000
-            print("Nodes count "+str(len(blobs)))
-            while i < len(blobs):
-                print("Sending {} batch of FMB".format(i//max_chunk))
-                blobchunk = []
-                if i < len(blobs):
-                    blobchunk = blobs[i:i+max_chunk]
-                else:
-                    blobchunk = blobs[i:]
-
-                only_digests = []
-                for el in blobchunk:
-                    only_digests.append(el[0])
-
-                request = remote_execution_pb2.FindMissingBlobsRequest(instance_name=self.instance_name,
-                    blob_digests=only_digests)
-                fmb_response = stub.FindMissingBlobs(request)
-                fmb_response_list.extend(fmb_response.missing_blob_digests)
-                i = i + max_chunk
             j = 0
             for iterable in blobs:
                 j += 1
@@ -780,11 +781,15 @@ class Uploader:
                     fmb_response_list.remove(iterable[0])
 
         else:
-            for node, blob, _ in merkle_tree_maker(directory_path):
-                if node.DESCRIPTOR is remote_execution_pb2.DirectoryNode.DESCRIPTOR:
-                    last_directory_node = node
-
-                self._queue_blob(blob, digest=node.digest)
+            j = 0
+            for iterable in blobs:
+                j += 1
+                if j%10000 == 0:
+                    print("Nodes checked "+str(j))
+                if iterable[0] in fmb_response_list:
+                    print("Uploading '%s'..." % iterable[2])
+                    self._queue_blob(iterable[1], digest=iterable[0])
+                    fmb_response_list.remove(iterable[0])
 
         return last_directory_node.digest
 
@@ -919,11 +924,13 @@ class Uploader:
         # If we are here queueing a file we know that its size is
         # smaller than gRPC's message size limit.
         # We'll make a single batch request as big as the server allows.
-        batch_size_limit = self._max_effective_batch_size_bytes() - 1024*128
+        batch_size_limit = self._max_effective_batch_size_bytes()
 
         if self.__request_size + blob_digest.size_bytes > batch_size_limit:
+            print("Request size limit reached, flushing.")
             self.flush()
-        elif self.__request_count >= (MAX_REQUEST_COUNT - 1024*128):
+        elif self.__request_count >= (MAX_REQUEST_COUNT):
+            print("Request count limit reached, flushing.")
             self.flush()
 
         self.__requests[blob_digest.hash] = (blob, blob_digest)
